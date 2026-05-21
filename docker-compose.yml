@@ -1,0 +1,26 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ceddit-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "040703"
+      MYSQL_DATABASE: "ceddit"
+    ports:
+      - "13306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  redis:
+    image: redis:7-alpine
+    container_name: ceddit-redis
+    restart: always
+    ports:
+      - "16379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  mysql-data:
+  redis-data:
