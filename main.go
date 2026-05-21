@@ -31,24 +31,24 @@ func main() {
 		return
 	}
 	defer zap.L().Sync()
-	
+
 	// 3. Initialize MySQL
 	if err := mysql.Init(); err != nil {
 		fmt.Printf("Failed to initialize mysql, err: %v\n", err)
 		return
 	}
 	defer mysql.Close()
-	
+
 	// 4. Initialize Redis
 	if err := redis.Init(); err != nil {
 		fmt.Printf("Failed to initialize redis, err: %v\n", err)
 		return
 	}
 	defer redis.Close()
-	
+
 	// 5. Register Routes
 	r := routes.Setup()
-	
+
 	// 6. Start server and exit gracefully
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", viper.GetInt("app.port")),
