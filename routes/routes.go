@@ -1,20 +1,24 @@
 package routes
 
 import (
+	"ceddit/controller"
 	"ceddit/logger"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
 )
 
 func Setup() *gin.Engine {
+	if viper.GetString("app.mode") == gin.ReleaseMode {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
 	r := gin.New()
 
 	r.Use(logger.GinLogger(), logger.GinRecovery(true))
 
-	r.GET("/", func(c *gin.Context) {
-		c.String(http.StatusOK, "ok")
-	})
+	r.POST("/signup", controller.SignUpHandler)
+	r.POST("/login", controller.LogInHandler)
 
 	return r
 }

@@ -32,7 +32,16 @@ func Init() error {
 		return err
 	}
 
-	core := zapcore.NewCore(encoder, writeSyncer, level)
+	var core zapcore.Core
+	if viper.GetString("app.mode") == "dev" {
+		consoleEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
+		core = zapcore.NewTee(
+			zapcore.NewCore(encoder, writeSyncer, level),
+			zapcore.NewCore(consoleEncoder, zapcore.Lock(os.Stdout), zapcore.DebugLevel),
+		)
+	} else {
+		core = zapcore.NewCore(encoder, writeSyncer, level)
+	}
 
 	logger := zap.New(core, zap.AddCaller())
 	zap.ReplaceGlobals(logger)

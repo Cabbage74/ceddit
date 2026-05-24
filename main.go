@@ -2,6 +2,7 @@ package main
 
 import (
 	"ceddit/logger"
+	"ceddit/pkg/snowflake"
 	"ceddit/repository/mysql"
 	"ceddit/repository/redis"
 	"ceddit/routes"
@@ -19,37 +20,36 @@ import (
 )
 
 func main() {
-	// 1. Load configs
 	if err := settings.Init(); err != nil {
 		fmt.Printf("Failed to load configs, err: %v\n", err)
 		return
 	}
 
-	// 2. Initialize Logger
 	if err := logger.Init(); err != nil {
 		fmt.Printf("Failed to initialize logger, err: %v\n", err)
 		return
 	}
 	defer zap.L().Sync()
 
-	// 3. Initialize MySQL
 	if err := mysql.Init(); err != nil {
 		fmt.Printf("Failed to initialize mysql, err: %v\n", err)
 		return
 	}
 	defer mysql.Close()
 
-	// 4. Initialize Redis
 	if err := redis.Init(); err != nil {
 		fmt.Printf("Failed to initialize redis, err: %v\n", err)
 		return
 	}
 	defer redis.Close()
 
-	// 5. Register Routes
+	if err := snowflake.Init(viper.GetString("app.start_time"), viper.GetInt64("app.machine_id")); err != nil {
+		fmt.Printf("Failed to initialize snowflake, err: %v\n", err)
+		return
+	}
+
 	r := routes.Setup()
 
-	// 6. Start server and exit gracefully
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", viper.GetInt("app.port")),
 		Handler: r,
