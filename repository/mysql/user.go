@@ -24,11 +24,10 @@ func InsertUser(user *models.User) error {
 	return nil
 }
 
-func CheckPassword(user *models.User) (bool, error) {
-	sqlStr := `select count(user_id) from user where username = ? and password = ?`
-	var count int
-	if err := db.Get(&count, sqlStr, user.Username, user.Password); err != nil {
-		return false, err
+func GetUser(user *models.User) error {
+	sqlStr := `select user_id, username, password from user where username = ?`
+	if err := db.Get(user, sqlStr, user.Username); err != nil {
+		return err
 	}
-	return count == 1, nil
+	return nil
 }

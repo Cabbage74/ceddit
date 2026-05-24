@@ -57,7 +57,7 @@ func main() {
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			zap.L().Fatal("Listen: %s\n", zap.Error(err))
+			zap.L().Fatal("", zap.Error(err))
 		}
 	}()
 

@@ -1,4 +1,4 @@
-package controller
+package response
 
 type Code int64
 
@@ -9,6 +9,8 @@ const (
 	CodeUserNotExist
 	CodeInvalidPassword
 	CodeServerBusy
+	CodeNeedAuth
+	CodeInvalidAuth
 
 	CodeFail
 )
@@ -20,6 +22,8 @@ var codeMsgMap = map[Code]string{
 	CodeUserNotExist:    "user not exist",
 	CodeInvalidPassword: "invalid password",
 	CodeServerBusy:      "server busy",
+	CodeNeedAuth:        "need auth",
+	CodeInvalidAuth:     "invalid auth",
 	CodeFail:            "just fail",
 }
 

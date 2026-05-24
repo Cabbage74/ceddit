@@ -2,6 +2,7 @@ package service
 
 import (
 	"ceddit/models"
+	"ceddit/pkg/jwt"
 	"ceddit/pkg/snowflake"
 	"ceddit/repository/mysql"
 	"crypto/md5"
@@ -29,28 +30,20 @@ func SignUp(p *models.ParamSignUp) error {
 	return mysql.InsertUser(&u)
 }
 
-func LogIn(p *models.ParamLogin) error {
-	exist, err := mysql.CheckUserExist(p.Username)
-	if err != nil {
-		return err
-	}
-	if !exist {
-		return errors.New("Invalid username")
-	}
-
+func LogIn(p *models.ParamLogin) (string, error) {
 	u := models.User{
 		Username: p.Username,
-		Password: encryptPassword(p.Password),
 	}
 
-	ok, err := mysql.CheckPassword(&u)
+	err := mysql.GetUser(&u)
 	if err != nil {
-		return err
+		return "", err
 	}
-	if !ok {
-		return errors.New("Wrong password")
+	if u.Password != encryptPassword(p.Password) {
+		return "", errors.New("Wrong password")
 	}
-	return nil
+
+	return jwt.GenToken(u.UserID, u.Username)
 }
 
 func encryptPassword(oPassword string) string {
