@@ -25,5 +25,3 @@ func GetCommunityByID(id int64) (*models.Community, error) {
 	}
 	return &data, nil
 }
-
-
