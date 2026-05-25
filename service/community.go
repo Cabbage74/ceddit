@@ -8,3 +8,7 @@ import (
 func GetCommunityList() ([]*models.Community, error) {
 	return mysql.GetCommunitys()
 }
+
+func GetCommunity(id int64) (*models.Community, error) {
+	return mysql.GetCommunityByID(id)
+}
