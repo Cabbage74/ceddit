@@ -3,7 +3,6 @@ package routes
 import (
 	"ceddit/controller"
 	"ceddit/middleware"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -18,11 +17,15 @@ func Setup() *gin.Engine {
 
 	r.Use(middleware.GinLogger(), middleware.GinRecovery(true))
 
-	r.POST("/signup", controller.SignUpHandler)
-	r.POST("/login", controller.LogInHandler)
-	r.POST("/islogin", middleware.JWTAuthMiddleware(), func(c *gin.Context) {
-		c.String(http.StatusOK, "yes")
-	})
+	v1 := r.Group("/api/v1")
+
+	v1.POST("/signup", controller.SignUpHandler)
+	v1.POST("/login", controller.LogInHandler)
+
+	v1.Use(middleware.JWTAuthMiddleware())
+	{
+		v1.GET("/community", controller.CommunityHandler)
+	}
 
 	return r
 }
