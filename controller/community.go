@@ -28,7 +28,7 @@ func CommunityDetailHandler(c *gin.Context) {
 	}
 	data, err := service.GetCommunity(id)
 	if err != nil {
-		zap.L().Error("service.GetCommunity(id) failed", zap.Error(err))
+		zap.L().Error("service.GetCommunity() failed", zap.Error(err))
 		response.ResponseError(c, response.CodeFail)
 		return
 	}

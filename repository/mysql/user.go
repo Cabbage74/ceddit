@@ -24,10 +24,22 @@ func InsertUser(user *models.User) error {
 	return nil
 }
 
-func GetUser(user *models.User) error {
+func GetUserByName(userName string) (*models.User, error) {
 	sqlStr := `select user_id, username, password from user where username = ?`
-	if err := db.Get(user, sqlStr, user.Username); err != nil {
-		return err
+	var user models.User
+	if err := db.Get(&user, sqlStr, userName); err != nil {
+		return nil, err
 	}
-	return nil
+	return &user, nil
 }
+
+func GetUserByID(userID int64) (*models.User, error) {
+	sqlStr := `select user_id, username, password from user where user_id = ?`
+	var user models.User
+	if err := db.Get(&user, sqlStr, userID); err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+

@@ -31,11 +31,7 @@ func SignUp(p *models.ParamSignUp) error {
 }
 
 func LogIn(p *models.ParamLogin) (string, error) {
-	u := models.User{
-		Username: p.Username,
-	}
-
-	err := mysql.GetUser(&u)
+	u, err := mysql.GetUserByName(p.Username)
 	if err != nil {
 		return "", err
 	}

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"ceddit/controller"
 	"ceddit/pkg/jwt"
 	"ceddit/pkg/response"
 	"strings"
@@ -31,7 +32,7 @@ func JWTAuthMiddleware() func(c *gin.Context) {
 			return
 		}
 
-		c.Set("userID", myClaims.UserID)
+		c.Set(controller.CtxUserIDKey, myClaims.UserID)
 		c.Next()
 	}
 }
