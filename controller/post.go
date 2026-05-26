@@ -17,7 +17,7 @@ func CreatePostHandler(c *gin.Context) {
 		response.ResponseError(c, response.CodeInvalidParam)
 		return
 	}
-	
+
 	p.PostID = snowflake.GenID()
 	userID, err := getCurrentUserID(c)
 	if err != nil {
@@ -25,13 +25,13 @@ func CreatePostHandler(c *gin.Context) {
 		return
 	}
 	p.AuthorID = userID
-	
+
 	if err := service.CreatePost(&p); err != nil {
 		zap.L().Error("service.CreatePost() failed", zap.Error(err))
 		response.ResponseError(c, response.CodeFail)
 		return
-	} 
-	
+	}
+
 	response.ResponseSuccess(c, nil)
 }
 
@@ -50,7 +50,6 @@ func PostDetailHandler(c *gin.Context) {
 	}
 	response.ResponseSuccess(c, data)
 }
-
 
 func PostHandler(c *gin.Context) {
 	page, size := getPageInfo(c)

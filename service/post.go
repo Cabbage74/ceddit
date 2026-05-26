@@ -29,7 +29,6 @@ func GetPost(id int64) (*models.PostDetail, error) {
 		return nil, err
 	}
 
-
 	data.AuthorName = user.Username
 	data.CommunityName = community.CommunityName
 	data.Post = post
@@ -43,7 +42,7 @@ func GetPostList(page, size int64) ([]*models.PostDetail, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	for _, post := range posts {
 		var cur models.PostDetail
 
@@ -55,10 +54,10 @@ func GetPostList(page, size int64) ([]*models.PostDetail, error) {
 
 		community, err := mysql.GetCommunityByID(post.CommunityID)
 		if err != nil {
-			zap.L().Error("mysql.GetCommunityByID() failed", zap.Error(err))	
+			zap.L().Error("mysql.GetCommunityByID() failed", zap.Error(err))
 			continue
 		}
-		
+
 		cur.AuthorName = user.Username
 		cur.CommunityName = community.CommunityName
 		cur.Post = post

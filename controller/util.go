@@ -23,7 +23,7 @@ func getCurrentUserID(c *gin.Context) (userID int64, err error) {
 		return
 	}
 	return
-} 
+}
 
 func getPageInfo(c *gin.Context) (int64, int64) {
 	pageStr := c.Query("page")
