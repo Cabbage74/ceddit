@@ -30,7 +30,7 @@ func SignUp(p *models.ParamSignUp) error {
 	return mysql.InsertUser(&u)
 }
 
-func LogIn(p *models.ParamLogin) (string, error) {
+func LogIn(p *models.ParamLogIn) (string, error) {
 	u, err := mysql.GetUserByName(p.Username)
 	if err != nil {
 		return "", err

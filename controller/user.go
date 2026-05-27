@@ -26,7 +26,7 @@ func SignUpHandler(c *gin.Context) {
 }
 
 func LogInHandler(c *gin.Context) {
-	var p models.ParamLogin
+	var p models.ParamLogIn
 	if err := c.ShouldBindJSON(&p); err != nil {
 		response.ResponseError(c, response.CodeInvalidParam)
 		return

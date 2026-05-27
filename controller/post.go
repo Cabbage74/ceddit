@@ -51,12 +51,33 @@ func PostDetailHandler(c *gin.Context) {
 	response.ResponseSuccess(c, data)
 }
 
-func PostHandler(c *gin.Context) {
+func EasyPostHandler(c *gin.Context) {
 	page, size := getPageInfo(c)
-	data, err := service.GetPostList(page, size)
+	data, err := service.GetEasyPostList(page, size)
 	if err != nil {
 		zap.L().Error("service.GetPostList() failed", zap.Error(err))
 		response.ResponseError(c, response.CodeFail)
+		return
+	}
+	response.ResponseSuccess(c, data)
+}
+
+func PostHandler(c *gin.Context) {
+	p := &models.ParamPostList{
+		Page:  1,
+		Size:  10,
+		Order: models.OrderTime,
+	}
+	if err := c.ShouldBindQuery(p); err != nil {
+		response.ResponseError(c, response.CodeInvalidParam)
+		return
+	}
+
+	data, err := service.GetPostList(p)
+	if err != nil {
+		zap.L().Error("service.GetPostList() failed", zap.Error(err))
+		response.ResponseError(c, response.CodeFail)
+		return
 	}
 	response.ResponseSuccess(c, data)
 }

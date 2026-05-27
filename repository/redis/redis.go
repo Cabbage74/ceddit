@@ -7,7 +7,9 @@ import (
 	"github.com/spf13/viper"
 )
 
-var rdb *redis.Client
+var (
+	rdb *redis.Client
+)
 
 func Init() error {
 	rdb = redis.NewClient(&redis.Options{
