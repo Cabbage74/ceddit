@@ -16,7 +16,7 @@ func Setup() *gin.Engine {
 
 	r := gin.New()
 
-	r.Use(middleware.GinLogger(), middleware.GinRecovery(true), middleware.RateLimitMiddleware(20 * time.Millisecond, 50))
+	r.Use(middleware.GinLogger(), middleware.GinRecovery(true), middleware.RateLimitMiddleware(20*time.Millisecond, 50))
 
 	v1 := r.Group("/api/v1")
 

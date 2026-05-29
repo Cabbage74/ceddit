@@ -19,4 +19,3 @@ func RateLimitMiddleware(fillInterval time.Duration, cap int64) func(c *gin.Cont
 		c.Next()
 	}
 }
-
