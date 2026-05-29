@@ -6,6 +6,7 @@ import (
 	"ceddit/pkg/response"
 	"strings"
 
+	jwtlib "github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 )
 
@@ -27,7 +28,14 @@ func JWTAuthMiddleware() func(c *gin.Context) {
 
 		myClaims, err := jwt.ParseToken(parts[1])
 		if err != nil {
-			response.ResponseErrorWithMsg(c, response.CodeInvalidAuth, err.Error())
+			if ve, ok := err.(*jwtlib.ValidationError); ok {
+				if ve.Errors&jwtlib.ValidationErrorExpired != 0 {
+					response.ResponseError(c, response.CodeAuthExpired)
+					c.Abort()
+					return
+				}
+			}
+			response.ResponseError(c, response.CodeInvalidAuth)
 			c.Abort()
 			return
 		}

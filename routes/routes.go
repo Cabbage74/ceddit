@@ -16,13 +16,17 @@ func Setup() *gin.Engine {
 
 	r := gin.New()
 
-	r.Use(middleware.GinLogger(), middleware.GinRecovery(true), middleware.RateLimitMiddleware(1 * time.Second, 1))
+	r.Use(middleware.GinLogger(), middleware.GinRecovery(true), middleware.RateLimitMiddleware(20 * time.Millisecond, 50))
 
 	v1 := r.Group("/api/v1")
 
+	// Public endpoints (no auth required).
 	v1.POST("/signup", controller.SignUpHandler)
 	v1.POST("/login", controller.LogInHandler)
+	v1.POST("/refresh", controller.RefreshHandler)
+	v1.POST("/logout", controller.LogoutHandler)
 
+	// Protected endpoints.
 	v1.Use(middleware.JWTAuthMiddleware())
 	{
 		v1.GET("/community", controller.CommunityHandler)

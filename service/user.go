@@ -2,7 +2,7 @@ package service
 
 import (
 	"ceddit/models"
-	"ceddit/pkg/jwt"
+	"ceddit/pkg/auth"
 	"ceddit/pkg/snowflake"
 	"ceddit/repository/mysql"
 	"crypto/md5"
@@ -12,13 +12,13 @@ import (
 
 const secret = "cabbage"
 
-func SignUp(p *models.ParamSignUp) error {
+func SignUp(p *models.ParamSignUp) (*auth.TokenPair, string, error) {
 	exist, err := mysql.CheckUserExist(p.Username)
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 	if exist {
-		return errors.New("Duplicate username")
+		return nil, "", errors.New("Duplicate username")
 	}
 
 	u := models.User{
@@ -27,19 +27,34 @@ func SignUp(p *models.ParamSignUp) error {
 		Password: encryptPassword(p.Password),
 	}
 
-	return mysql.InsertUser(&u)
+	if err := mysql.InsertUser(&u); err != nil {
+		return nil, "", err
+	}
+
+	// Auto-login: generate token pair after successful signup.
+	return auth.CreateTokens(u.UserID, u.Username, p.DeviceID)
 }
 
-func LogIn(p *models.ParamLogIn) (string, error) {
+func LogIn(p *models.ParamLogIn) (*auth.TokenPair, string, error) {
 	u, err := mysql.GetUserByName(p.Username)
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 	if u.Password != encryptPassword(p.Password) {
-		return "", errors.New("Wrong password")
+		return nil, "", errors.New("Wrong password")
 	}
 
-	return jwt.GenToken(u.UserID, u.Username)
+	return auth.CreateTokens(u.UserID, u.Username, p.DeviceID)
+}
+
+// RefreshTokens validates the old refresh token and returns a new pair.
+func RefreshTokens(oldRefreshToken string) (*auth.TokenPair, string, error) {
+	return auth.RefreshTokens(oldRefreshToken)
+}
+
+// RevokeUserTokens removes all refresh tokens for the given user.
+func RevokeUserTokens(userID int64) error {
+	return auth.RevokeAllTokens(userID)
 }
 
 func encryptPassword(oPassword string) string {

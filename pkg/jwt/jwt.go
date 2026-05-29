@@ -5,11 +5,8 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/spf13/viper"
 )
-
-const TokenExpireDuration = time.Hour * 24 * 60
-
-var mySecret = []byte("cabbage")
 
 type MyClaims struct {
 	UserID   int64  `json:"user_id"`
@@ -18,21 +15,22 @@ type MyClaims struct {
 }
 
 func GenToken(userID int64, username string) (string, error) {
+	ttl := viper.GetInt("jwt.access_token_ttl")
 	c := MyClaims{
 		userID,
 		username,
 		jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(TokenExpireDuration).Unix(),
+			ExpiresAt: time.Now().Add(time.Duration(ttl) * time.Minute).Unix(),
 			Issuer:    "ceddit",
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, c)
-	return token.SignedString(mySecret)
+	return token.SignedString([]byte(viper.GetString("jwt.secret")))
 }
 
 func ParseToken(tokenString string) (*MyClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &MyClaims{}, func(t *jwt.Token) (any, error) {
-		return mySecret, nil
+		return []byte(viper.GetString("jwt.secret")), nil
 	})
 	if err != nil {
 		return nil, err

@@ -11,6 +11,7 @@ const (
 	CodeServerBusy
 	CodeNeedAuth
 	CodeInvalidAuth
+	CodeAuthExpired
 
 	CodeFail
 )
@@ -24,6 +25,7 @@ var codeMsgMap = map[Code]string{
 	CodeServerBusy:      "server busy",
 	CodeNeedAuth:        "need auth",
 	CodeInvalidAuth:     "invalid auth",
+	CodeAuthExpired:     "auth expired",
 	CodeFail:            "just fail",
 }
 
