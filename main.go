@@ -2,6 +2,8 @@ package main
 
 import (
 	"ceddit/logger"
+	"ceddit/pkg/cos"
+	"ceddit/pkg/deepseek"
 	"ceddit/pkg/snowflake"
 	"ceddit/repository/mysql"
 	"ceddit/repository/redis"
@@ -47,6 +49,13 @@ func main() {
 		fmt.Printf("Failed to initialize snowflake, err: %v\n", err)
 		return
 	}
+
+	if err := cos.Init(); err != nil {
+		fmt.Printf("Failed to initialize COS, err: %v\n", err)
+		return
+	}
+
+	deepseek.Init()
 
 	r := routes.Setup()
 

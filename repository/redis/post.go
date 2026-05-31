@@ -7,7 +7,7 @@ import (
 	"github.com/go-redis/redis"
 )
 
-func CreatePost(postID int64) error {
+func AddPostToTimeline(postID int64) error {
 	pipeline := rdb.TxPipeline()
 
 	pipeline.ZAdd(KeyPostTimeZSet, redis.Z{

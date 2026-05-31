@@ -29,10 +29,12 @@ func Setup() *gin.Engine {
 	// Protected endpoints.
 	v1.Use(middleware.JWTAuthMiddleware())
 	{
-		v1.GET("/community", controller.CommunityHandler)
-		v1.GET("/community/:id", controller.CommunityDetailHandler)
+		v1.POST("/post/draft", controller.CreateDraftHandler)
+		v1.POST("/storage/presign", controller.PresignHandler)
+		v1.POST("/post/:id/content/confirm", controller.ConfirmContentHandler)
+		v1.PATCH("/post/:id", controller.PatchPostHandler)
+		v1.POST("/post/:id/publish", controller.PublishHandler)
 
-		v1.POST("/post", controller.CreatePostHandler)
 		v1.GET("/easypost", controller.EasyPostHandler)
 		v1.GET("/post/:id", controller.PostDetailHandler)
 		v1.GET("/post", controller.PostHandler)

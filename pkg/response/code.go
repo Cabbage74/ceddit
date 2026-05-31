@@ -13,6 +13,10 @@ const (
 	CodeInvalidAuth
 	CodeAuthExpired
 
+	CodeNotOwner
+	CodeContentNotOK
+	CodeDraftNotReady
+
 	CodeFail
 )
 
@@ -26,6 +30,9 @@ var codeMsgMap = map[Code]string{
 	CodeNeedAuth:        "need auth",
 	CodeInvalidAuth:     "invalid auth",
 	CodeAuthExpired:     "auth expired",
+	CodeNotOwner:        "not the owner",
+	CodeContentNotOK:    "content verification failed",
+	CodeDraftNotReady:   "draft not ready",
 	CodeFail:            "just fail",
 }
 
