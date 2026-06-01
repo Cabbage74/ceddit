@@ -26,6 +26,9 @@ func Setup() *gin.Engine {
 	v1.POST("/refresh", controller.RefreshHandler)
 	v1.POST("/logout", controller.LogoutHandler)
 
+	// Public feed (auth optional — liked/faved overlaid if JWT present).
+	v1.GET("/feed", middleware.JWTAuthOptionalMiddleware(), controller.PublicFeedHandler)
+
 	// Protected endpoints.
 	v1.Use(middleware.JWTAuthMiddleware())
 	{

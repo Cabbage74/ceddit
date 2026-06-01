@@ -2,6 +2,7 @@ package service
 
 import (
 	"ceddit/models"
+	"ceddit/pkg/cache"
 	"ceddit/pkg/cos"
 	"ceddit/pkg/deepseek"
 	"ceddit/pkg/snowflake"
@@ -15,6 +16,46 @@ import (
 
 	"go.uber.org/zap"
 )
+
+// feedCache is the three-tier cache manager for public feed pages.
+// Initialised by InitFeedCache during app startup.
+var feedCache *cache.FeedCache
+
+// InitFeedCache creates the three-tier feed cache manager. Must be called
+// after Redis is initialised and before any feed requests are served.
+func InitFeedCache() {
+	cfg := cache.LoadConfig()
+	feedCache = cache.NewFeedCache(redis.GetRDB(), cfg.Feed, cfg.HotKey)
+}
+
+// ShutdownFeedCache stops background goroutines in the cache subsystem.
+func ShutdownFeedCache() {
+	if feedCache != nil {
+		feedCache.Shutdown()
+	}
+}
+
+// GetPublicFeed returns a public feed page using the three-tier cache
+// (L2 local → L1 Redis skeleton → L0 Redis fragments → DB).
+//
+// Personalised state (liked/faved) is overlaid from the bitmap fact layer
+// and never written into the public cache tiers.
+//
+// currentUserID may be 0 for anonymous users.
+func GetPublicFeed(page, size int, currentUserID int64) (*cache.FeedPageResponse, error) {
+	if feedCache == nil {
+		return nil, errors.New("feed cache not initialised")
+	}
+	return feedCache.GetPublicFeed(page, size, currentUserID)
+}
+
+// InvalidatePublicFeedCache triggers a double-delete of the public feed cache.
+// Called after content mutations (publish, edit, delete).
+func InvalidatePublicFeedCache() {
+	if feedCache != nil {
+		feedCache.InvalidatePublicFeed()
+	}
+}
 
 func CreateDraft(authorID, postID int64) error {
 	return mysql.CreateDraft(postID, authorID)
@@ -130,7 +171,14 @@ func PublishPost(postID, authorID int64) error {
 		return err
 	}
 
-	return redis.AddPostToTimeline(postID)
+	if err := redis.AddPostToTimeline(postID); err != nil {
+		return err
+	}
+
+	// Invalidate public feed cache so the new post appears promptly.
+	InvalidatePublicFeedCache()
+
+	return nil
 }
 
 func GetPost(id int64) (*models.PostDetail, error) {

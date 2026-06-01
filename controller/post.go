@@ -156,6 +156,29 @@ func EasyPostHandler(c *gin.Context) {
 	response.ResponseSuccess(c, data)
 }
 
+// PublicFeedHandler returns the public feed using the three-tier cache.
+//
+// Query params: page (default 1), size (default 10, max 50).
+// Authentication is optional — if a valid JWT is present, liked/faved
+// status is overlaid per item; anonymous users see public-only data.
+func PublicFeedHandler(c *gin.Context) {
+	page, size := getPageInfo(c)
+	if size > 50 {
+		size = 50
+	}
+
+	// Try to get current user ID (0 if not authenticated).
+	userID, _ := getCurrentUserID(c)
+
+	data, err := service.GetPublicFeed(int(page), int(size), userID)
+	if err != nil {
+		zap.L().Error("service.GetPublicFeed() failed", zap.Error(err))
+		response.ResponseError(c, response.CodeFail)
+		return
+	}
+	response.ResponseSuccess(c, data)
+}
+
 func PostHandler(c *gin.Context) {
 	p := &models.ParamPostList{
 		Page:  1,

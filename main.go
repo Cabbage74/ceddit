@@ -93,6 +93,10 @@ func main() {
 	// Reconnects automatically if Kafka or Canal is not ready yet.
 	go service.RunConsumer(context.Background(), mysql.DB().DB)
 
+	// Initialise the three-tier feed cache (L2 local → L1 Redis skeleton → L0 Redis fragments).
+	service.InitFeedCache()
+	defer service.ShutdownFeedCache()
+
 	r := routes.Setup()
 
 	server := &http.Server{
