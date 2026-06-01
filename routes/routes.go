@@ -29,6 +29,9 @@ func Setup() *gin.Engine {
 	// Public feed (auth optional — liked/faved overlaid if JWT present).
 	v1.GET("/feed", middleware.JWTAuthOptionalMiddleware(), controller.PublicFeedHandler)
 
+	// RAG Q&A streaming endpoint (auth optional — public posts answerable by anyone).
+	v1.GET("/posts/:id/qa/stream", middleware.JWTAuthOptionalMiddleware(), controller.PostQaStreamHandler)
+
 	// Protected endpoints.
 	v1.Use(middleware.JWTAuthMiddleware())
 	{

@@ -124,7 +124,20 @@ func ConfirmContent(postID, authorID int64, p *models.ParamContentConfirm) error
 		return fmt.Errorf("SHA256 mismatch: expected %s, got %s", p.SHA256, gotSHA256)
 	}
 
-	return mysql.UpdateContentConfirm(postID, p.ObjectKey, etag, size, p.SHA256)
+	if err := mysql.UpdateContentConfirm(postID, p.ObjectKey, etag, size, p.SHA256); err != nil {
+		return err
+	}
+
+	// Pre-index for RAG: build vector index early to reduce cold start.
+	go func() {
+		if _, err := EnsurePostIndexed(postID); err != nil {
+			zap.L().Warn("pre-index after content confirm failed",
+				zap.Int64("post_id", postID),
+				zap.Error(err))
+		}
+	}()
+
+	return nil
 }
 
 func PatchPost(postID, authorID int64, p *models.ParamPatchPost) error {
@@ -177,6 +190,15 @@ func PublishPost(postID, authorID int64) error {
 
 	// Invalidate public feed cache so the new post appears promptly.
 	InvalidatePublicFeedCache()
+
+	// Pre-index for RAG: build vector index for the published post.
+	go func() {
+		if _, err := EnsurePostIndexed(postID); err != nil {
+			zap.L().Warn("pre-index after publish failed",
+				zap.Int64("post_id", postID),
+				zap.Error(err))
+		}
+	}()
 
 	return nil
 }

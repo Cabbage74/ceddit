@@ -83,8 +83,36 @@ services:
       - ./canal/conf/example/instance.properties:/home/admin/canal-server/conf/example/instance.properties:ro
       - canal-logs:/home/admin/canal-server/logs
 
+  # Elasticsearch for RAG vector search.
+  # Memory-tuned for small servers: 256 MB heap + 512 MB Docker limit.
+  # If your server has < 2 GB free memory, comment this out — the RAG system
+  # will automatically fall back to in-memory vector storage.
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    container_name: ceddit-elasticsearch
+    restart: always
+    ports:
+      - "9200:9200"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.ml.enabled=false
+      - xpack.watcher.enabled=false
+      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
+    mem_limit: 512m
+    mem_reservation: 256m
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q 'green\|yellow'"]
+      interval: 15s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+
 volumes:
   mysql-data:
   redis-data:
   kafka-data:
   canal-logs:
+  es-data:

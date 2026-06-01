@@ -66,6 +66,9 @@ func main() {
 
 	deepseek.Init()
 
+	// Initialize RAG subsystem (vector store, embedder, indexer, Q&A service).
+	service.InitRAG()
+
 	// Pre-load counter flush Lua scripts for the async write aggregation pipeline.
 	if err := counter.InitCounterScripts(); err != nil {
 		fmt.Printf("Failed to load counter scripts, err: %v\n", err)
