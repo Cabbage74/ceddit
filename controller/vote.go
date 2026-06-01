@@ -20,10 +20,16 @@ func VoteHandler(c *gin.Context) {
 		response.ResponseError(c, response.CodeNeedAuth)
 		return
 	}
-	if err := service.VoteForPost(userID, &p); err != nil {
+
+	result, err := service.VoteForPost(userID, &p)
+	if err != nil {
 		zap.L().Error("service.VoteForPost() failed", zap.Error(err))
 		response.ResponseError(c, response.CodeFail)
 		return
 	}
-	response.ResponseSuccess(c, nil)
+
+	// Return changed + liked so the client can:
+	//  - changed=false → ignore duplicate clicks gracefully
+	//  - liked=true/false → update button state without a second request
+	response.ResponseSuccess(c, result)
 }

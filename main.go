@@ -2,7 +2,9 @@ package main
 
 import (
 	"ceddit/logger"
+	"ceddit/pkg/bitmap"
 	"ceddit/pkg/cos"
+	"ceddit/pkg/counter"
 	"ceddit/pkg/deepseek"
 	"ceddit/pkg/snowflake"
 	"ceddit/repository/mysql"
@@ -63,6 +65,29 @@ func main() {
 	}
 
 	deepseek.Init()
+
+	// Pre-load counter flush Lua scripts for the async write aggregation pipeline.
+	if err := counter.InitCounterScripts(); err != nil {
+		fmt.Printf("Failed to load counter scripts, err: %v\n", err)
+		return
+	}
+
+	// Pre-load bitmap toggle Lua scripts for the fact-layer shard operations.
+	if err := bitmap.InitScripts(redis.GetRDB()); err != nil {
+		fmt.Printf("Failed to load bitmap scripts, err: %v\n", err)
+		return
+	}
+
+	// Initialise the counter event producer (Kafka writer).
+	counter.InitProducer()
+	defer counter.CloseProducer()
+
+	// Start Kafka consumer for counter event aggregation (goroutine with reconnect).
+	go counter.RunAggregationConsumer(context.Background())
+
+	// Start periodic flush scheduler: reads aggregated deltas from Redis Hash
+	// buckets and atomically applies them to CountInt SDS keys every 1 s.
+	go counter.RunFlushScheduler(context.Background())
 
 	// Start Kafka consumer in background (projects follower table from outbox events).
 	// Reconnects automatically if Kafka or Canal is not ready yet.
