@@ -99,15 +99,20 @@ func GetFollowingList(userID int64, cursor string, limit int) (*models.RespFollo
 		return nil, err
 	}
 
-	total, err := mysql.GetFollowingCount(userID)
+	// Read following count from Redis CountInt (with MySQL fallback).
+	following, _, err := redispkg.GetUserCounts(userID)
 	if err != nil {
-		return nil, err
+		zap.L().Warn("get user counts from redis failed", zap.Int64("user", userID), zap.Error(err))
+		following, err = mysql.GetFollowingCount(userID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &models.RespFollowList{
 		List:       list,
 		NextCursor: nextCursor,
-		Total:      total,
+		Total:      following,
 	}, nil
 }
 
@@ -122,15 +127,20 @@ func GetFollowerList(userID int64, cursor string, limit int) (*models.RespFollow
 		return nil, err
 	}
 
-	total, err := mysql.GetFollowerCountFromProjection(userID)
+	// Read follower count from Redis CountInt (with MySQL fallback).
+	_, follower, err := redispkg.GetUserCounts(userID)
 	if err != nil {
-		return nil, err
+		zap.L().Warn("get user counts from redis failed", zap.Int64("user", userID), zap.Error(err))
+		follower, err = mysql.GetFollowerCountFromProjection(userID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &models.RespFollowerList{
 		List:       list,
 		NextCursor: nextCursor,
-		Total:      total,
+		Total:      follower,
 	}, nil
 }
 

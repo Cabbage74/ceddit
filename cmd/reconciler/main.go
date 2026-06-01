@@ -6,7 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-redis/redis"
+	redispkg "ceddit/repository/redis"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -16,8 +17,11 @@ import (
 // reconciler is a periodic job that:
 //  1. Counts follow relationships from the following source-of-truth table.
 //  2. Counts followers from the follower projection table.
-//  3. Updates Redis hash keys with the correct counts.
+//  3. Writes correct counts to Redis CountInt binary blobs (SDS).
 //  4. Removes stale rows from follower that have no corresponding following row.
+//
+// Uses the CountInt binary encoding: each user gets one Redis String key
+// ("ucnt:{user_id}") with a 16-byte value: [following_count:8][follower_count:8].
 //
 // Run via cron: */5 * * * * /usr/local/bin/ceddit-reconciler
 
@@ -51,27 +55,18 @@ func main() {
 		logger.Fatal("ping mysql", zap.Error(err))
 	}
 
-	// ---- Redis ----
-	rdb := redis.NewClient(&redis.Options{
-		Addr: fmt.Sprintf("%s:%d",
-			viper.GetString("redis.host"),
-			viper.GetInt("redis.port"),
-		),
-		Password: viper.GetString("redis.password"),
-		DB:       viper.GetInt("redis.db"),
-	})
-	defer rdb.Close()
-
-	if _, err := rdb.Ping().Result(); err != nil {
-		logger.Fatal("ping redis", zap.Error(err))
+	// ---- Redis (package-level client for CountInt operations) ----
+	if err := redispkg.Init(); err != nil {
+		logger.Fatal("init redis", zap.Error(err))
 	}
+	defer redispkg.Close()
 
 	start := time.Now()
 	logger.Info("reconciler started")
 
 	// ---- 1. Reconcile following counts from source of truth ----
 	logger.Info("reconciling following counts")
-	rows, err := db.Query(
+	followingRows, err := db.Query(
 		`SELECT from_user_id, COUNT(*) AS cnt
 		 FROM following
 		 GROUP BY from_user_id`,
@@ -79,26 +74,22 @@ func main() {
 	if err != nil {
 		logger.Fatal("query following counts", zap.Error(err))
 	}
-	defer rows.Close()
+	defer followingRows.Close()
 
-	for rows.Next() {
+	// Collect all user IDs and their following counts.
+	userFollowing := make(map[int64]int64)
+	for followingRows.Next() {
 		var userID, count int64
-		if err := rows.Scan(&userID, &count); err != nil {
+		if err := followingRows.Scan(&userID, &count); err != nil {
 			logger.Error("scan following row", zap.Error(err))
 			continue
 		}
-		key := fmt.Sprintf("user:%d:counts", userID)
-		if err := rdb.HSet(key, "following_count", count).Err(); err != nil {
-			logger.Error("redis hset following_count",
-				zap.Int64("user", userID),
-				zap.Error(err),
-			)
-		}
+		userFollowing[userID] = count
 	}
 
 	// ---- 2. Reconcile follower counts from projection ----
 	logger.Info("reconciling follower counts")
-	rows2, err := db.Query(
+	followerRows, err := db.Query(
 		`SELECT to_user_id, COUNT(*) AS cnt
 		 FROM follower
 		 GROUP BY to_user_id`,
@@ -106,26 +97,70 @@ func main() {
 	if err != nil {
 		logger.Fatal("query follower counts", zap.Error(err))
 	}
-	defer rows2.Close()
+	defer followerRows.Close()
 
-	for rows2.Next() {
+	userFollower := make(map[int64]int64)
+	for followerRows.Next() {
 		var userID, count int64
-		if err := rows2.Scan(&userID, &count); err != nil {
+		if err := followerRows.Scan(&userID, &count); err != nil {
 			logger.Error("scan follower row", zap.Error(err))
 			continue
 		}
-		key := fmt.Sprintf("user:%d:counts", userID)
-		if err := rdb.HSet(key, "follower_count", count).Err(); err != nil {
-			logger.Error("redis hset follower_count",
-				zap.Int64("user", userID),
+		userFollower[userID] = count
+	}
+
+	// ---- 3. Write CountInt blobs to Redis ----
+	// Merge both maps: every user that has at least one following or follower.
+	allUsers := make(map[int64]struct{})
+	for uid := range userFollowing {
+		allUsers[uid] = struct{}{}
+	}
+	for uid := range userFollower {
+		allUsers[uid] = struct{}{}
+	}
+
+	logger.Info("writing CountInt blobs", zap.Int("users", len(allUsers)))
+	for uid := range allUsers {
+		if err := redispkg.SetUserCounts(uid, userFollowing[uid], userFollower[uid]); err != nil {
+			logger.Error("set user counts",
+				zap.Int64("user", uid),
 				zap.Error(err),
 			)
 		}
 	}
 
-	// ---- 3. Clean up stale follower rows ----
-	// Remove follower rows where the corresponding following row has been deleted
-	// (soft-delete gap: following row is gone but follower row lingers).
+	// ---- 4. Reconcile post like counts from vote ZSets ----
+	// Query all published posts, then count upvotes from Redis ZSets.
+	logger.Info("reconciling post like counts")
+	postRows, err := db.Query(
+		`SELECT id FROM post WHERE status = 'published'`,
+	)
+	if err != nil {
+		logger.Error("query posts", zap.Error(err))
+	} else {
+		defer postRows.Close()
+		var postCount int
+		for postRows.Next() {
+			var postID int64
+			if err := postRows.Scan(&postID); err != nil {
+				logger.Error("scan post row", zap.Error(err))
+				continue
+			}
+			// Count upvotes (score == 1) from the vote ZSet.
+			key := fmt.Sprintf("%s%d", redispkg.KeyPostVotedZsetPrefix, postID)
+			likeCount := redispkg.GetRDB().ZCount(key, "1", "1").Val()
+			if err := redispkg.SetPostLikeCount(postID, likeCount); err != nil {
+				logger.Error("set post like count",
+					zap.Int64("post", postID),
+					zap.Error(err),
+				)
+			}
+			postCount++
+		}
+		logger.Info("reconciled post like counts", zap.Int("posts", postCount))
+	}
+
+	// ---- 5. Clean up stale follower rows ----
 	logger.Info("cleaning stale follower rows")
 	result, err := db.Exec(
 		`DELETE f FROM follower f

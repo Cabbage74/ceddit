@@ -46,6 +46,12 @@ func main() {
 	}
 	defer redis.Close()
 
+	// Pre-load CountInt Lua scripts for atomic binary-counter operations.
+	if err := redis.InitCountScripts(); err != nil {
+		fmt.Printf("Failed to load count scripts, err: %v\n", err)
+		return
+	}
+
 	if err := snowflake.Init(viper.GetString("app.start_time"), viper.GetInt64("app.machine_id")); err != nil {
 		fmt.Printf("Failed to initialize snowflake, err: %v\n", err)
 		return

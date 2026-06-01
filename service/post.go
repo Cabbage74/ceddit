@@ -12,7 +12,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"go.uber.org/zap"
 )
@@ -145,10 +144,10 @@ func GetPost(id int64) (*models.PostDetail, error) {
 		return nil, err
 	}
 
-	voteData := redis.GetPostVote([]string{strconv.FormatInt(post.PostID, 10)})
-	var voteNum int64
-	if len(voteData) > 0 {
-		voteNum = voteData[0]
+	voteNum, err := redis.GetPostLikeCount(post.PostID)
+	if err != nil {
+		zap.L().Warn("get post like count failed", zap.Int64("post_id", post.PostID), zap.Error(err))
+		voteNum = 0
 	}
 
 	var content string
@@ -206,18 +205,17 @@ func GetPostList(p *models.ParamPostList) ([]*models.PostDetail, error) {
 		return nil, err
 	}
 
-	voteData := redis.GetPostVote(ids)
-
-	for idx, post := range posts {
+	for _, post := range posts {
 		user, err := mysql.GetUserByID(post.AuthorID)
 		if err != nil {
 			zap.L().Error("mysql.GetUserByID() failed", zap.Error(err))
 			continue
 		}
 
-		var voteNum int64
-		if idx < len(voteData) {
-			voteNum = voteData[idx]
+		voteNum, err := redis.GetPostLikeCount(post.PostID)
+		if err != nil {
+			zap.L().Warn("get post like count failed", zap.Int64("post_id", post.PostID), zap.Error(err))
+			voteNum = 0
 		}
 
 		data = append(data, &models.PostDetail{

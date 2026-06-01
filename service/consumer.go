@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"time"
 
+	"ceddit/pkg/countint"
+	redispkg "ceddit/repository/redis"
+
 	"github.com/segmentio/kafka-go"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -167,6 +170,18 @@ func projectFollow(db *sql.DB, aggregateID string, p *outboxPayload, logger *zap
 		zap.String("aggregate_id", aggregateID),
 		zap.Int64("rows", rows),
 	)
+
+	// Update Redis CountInt: from_user's following_count +1, to_user's follower_count +1.
+	// Best-effort — reconciler will fix any drift.
+	if _, err := redispkg.IncrUserCount(p.FromUserID, countint.UserFollowingOffset, 1); err != nil {
+		logger.Warn("consumer: incr following_count failed",
+			zap.Int64("user", p.FromUserID), zap.Error(err))
+	}
+	if _, err := redispkg.IncrUserCount(p.ToUserID, countint.UserFollowerOffset, 1); err != nil {
+		logger.Warn("consumer: incr follower_count failed",
+			zap.Int64("user", p.ToUserID), zap.Error(err))
+	}
+
 	return nil
 }
 
@@ -185,5 +200,17 @@ func projectUnfollow(db *sql.DB, aggregateID string, p *outboxPayload, logger *z
 	} else {
 		logger.Debug("consumer: unfollow skipped (idempotent)", zap.String("aggregate_id", aggregateID))
 	}
+
+	// Update Redis CountInt: from_user's following_count -1, to_user's follower_count -1.
+	// Best-effort — reconciler will fix any drift.
+	if _, err := redispkg.IncrUserCount(p.FromUserID, countint.UserFollowingOffset, -1); err != nil {
+		logger.Warn("consumer: decr following_count failed",
+			zap.Int64("user", p.FromUserID), zap.Error(err))
+	}
+	if _, err := redispkg.IncrUserCount(p.ToUserID, countint.UserFollowerOffset, -1); err != nil {
+		logger.Warn("consumer: decr follower_count failed",
+			zap.Int64("user", p.ToUserID), zap.Error(err))
+	}
+
 	return nil
 }

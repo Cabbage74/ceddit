@@ -10,6 +10,9 @@ import (
 	"syscall"
 	"time"
 
+	"ceddit/pkg/countint"
+	redispkg "ceddit/repository/redis"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/segmentio/kafka-go"
 	"github.com/spf13/viper"
@@ -68,6 +71,17 @@ func main() {
 		logger.Fatal("ping mysql", zap.Error(err))
 	}
 	logger.Info("connected to MySQL")
+
+	// ---- Redis (for CountInt updates) ----
+	if err := redispkg.Init(); err != nil {
+		logger.Fatal("init redis", zap.Error(err))
+	}
+	defer redispkg.Close()
+
+	if err := redispkg.InitCountScripts(); err != nil {
+		logger.Fatal("init count scripts", zap.Error(err))
+	}
+	logger.Info("connected to Redis")
 
 	// ---- Kafka reader ----
 	brokers := viper.GetStringSlice("kafka.brokers")
@@ -205,6 +219,16 @@ func handleFollow(db *sql.DB, aggregateID string, p *outboxPayload, logger *zap.
 		zap.Int64("rows_affected", rows),
 	)
 
+	// Update Redis CountInt: from_user's following_count +1, to_user's follower_count +1.
+	if _, err := redispkg.IncrUserCount(p.FromUserID, countint.UserFollowingOffset, 1); err != nil {
+		logger.Warn("incr following_count failed",
+			zap.Int64("user", p.FromUserID), zap.Error(err))
+	}
+	if _, err := redispkg.IncrUserCount(p.ToUserID, countint.UserFollowerOffset, 1); err != nil {
+		logger.Warn("incr follower_count failed",
+			zap.Int64("user", p.ToUserID), zap.Error(err))
+	}
+
 	return nil
 }
 
@@ -229,6 +253,16 @@ func handleUnfollow(db *sql.DB, aggregateID string, p *outboxPayload, logger *za
 		logger.Debug("unfollow skipped: no matching follower row",
 			zap.String("aggregate_id", aggregateID),
 		)
+	}
+
+	// Update Redis CountInt: from_user's following_count -1, to_user's follower_count -1.
+	if _, err := redispkg.IncrUserCount(p.FromUserID, countint.UserFollowingOffset, -1); err != nil {
+		logger.Warn("decr following_count failed",
+			zap.Int64("user", p.FromUserID), zap.Error(err))
+	}
+	if _, err := redispkg.IncrUserCount(p.ToUserID, countint.UserFollowerOffset, -1); err != nil {
+		logger.Warn("decr follower_count failed",
+			zap.Int64("user", p.ToUserID), zap.Error(err))
 	}
 
 	return nil

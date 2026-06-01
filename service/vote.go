@@ -6,6 +6,8 @@ import (
 	"errors"
 	"math"
 	"strconv"
+
+	"go.uber.org/zap"
 )
 
 const (
@@ -40,5 +42,19 @@ func VoteForPost(userID int64, p *models.ParamVote) error {
 	if err := redis.RecordVoteForPostByUser(postIDStr, userIDStr, direction); err != nil {
 		return err
 	}
+
+	// Update post like_count in CountInt (only tracks upvotes, direction == 1).
+	if oldDirection != 1 && direction == 1 {
+		if _, err := redis.IncrPostLikeCount(p.PostID, 1); err != nil {
+			zap.L().Warn("incr post like count failed",
+				zap.Int64("post_id", p.PostID), zap.Error(err))
+		}
+	} else if oldDirection == 1 && direction != 1 {
+		if _, err := redis.IncrPostLikeCount(p.PostID, -1); err != nil {
+			zap.L().Warn("decr post like count failed",
+				zap.Int64("post_id", p.PostID), zap.Error(err))
+		}
+	}
+
 	return nil
 }
