@@ -40,6 +40,12 @@ func Setup() *gin.Engine {
 		v1.GET("/post", controller.PostHandler)
 
 		v1.POST("/vote", controller.VoteHandler)
+
+		// User relations
+		v1.POST("/users/:to_user_id/follow", controller.FollowHandler)
+		v1.POST("/users/:to_user_id/unfollow", controller.UnfollowHandler)
+		v1.GET("/users/:user_id/following", controller.FollowingListHandler)
+		v1.GET("/users/:user_id/followers", controller.FollowerListHandler)
 	}
 
 	return r

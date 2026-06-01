@@ -66,6 +66,11 @@ func truncate(s string, n int) string {
 	return s[:n] + "..."
 }
 
+// DB returns the underlying *sql.DB for use by subsystems (e.g. Kafka consumer).
+func DB() *sqlx.DB {
+	return db
+}
+
 func Close() {
 	_ = db.Close()
 }

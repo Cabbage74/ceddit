@@ -8,6 +8,7 @@ import (
 	"ceddit/repository/mysql"
 	"ceddit/repository/redis"
 	"ceddit/routes"
+	"ceddit/service"
 	"ceddit/settings"
 	"context"
 	"fmt"
@@ -56,6 +57,10 @@ func main() {
 	}
 
 	deepseek.Init()
+
+	// Start Kafka consumer in background (projects follower table from outbox events).
+	// Reconnects automatically if Kafka or Canal is not ready yet.
+	go service.RunConsumer(context.Background(), mysql.DB().DB)
 
 	r := routes.Setup()
 
