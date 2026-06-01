@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/sashabaranov/go-openai"
@@ -56,6 +57,16 @@ func (qa *QAService) SearchContexts(ctx context.Context, postID int64, question 
 	results, err := qa.store.Search(ctx, queryVec, fetchK, postID)
 	if err != nil {
 		return nil, fmt.Errorf("search contexts: %w", err)
+	}
+
+	// When no embeddings available, re-score with keyword matching.
+	if len(queryVec) == 0 {
+		for i := range results {
+			results[i].Score = KeywordScore(question, results[i].Doc.Text)
+		}
+		sort.Slice(results, func(i, j int) bool {
+			return results[i].Score > results[j].Score
+		})
 	}
 
 	// Return top K.

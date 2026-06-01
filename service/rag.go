@@ -68,8 +68,8 @@ func initESStore() (rag.VectorStore, error) {
 		indexName = "zhiguang-ai-index"
 	}
 
-	embedDim := 1536 // text-embedding-v4 dimension
-	if emb := rag.GetEmbedder(); emb != nil {
+	embedDim := 1024 // default, overridden by embedder config
+	if emb := rag.GetEmbedder(); emb != nil && emb.Dims() > 0 {
 		embedDim = emb.Dims()
 	}
 

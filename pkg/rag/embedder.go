@@ -10,31 +10,36 @@ import (
 )
 
 // Embedder generates embedding vectors for text using an OpenAI-compatible API.
+// Configured via rag.embedding.* in config.yaml (base_url, api_key, model, dimensions).
 type Embedder struct {
 	client *openai.Client
 	model  string
+	dims   int
 	mu     sync.Mutex
 }
 
 var defaultEmbedder *Embedder
 
 // InitEmbedder initializes the global embedder from config.
-// Config keys: rag.embedding.base_url, rag.embedding.api_key, rag.embedding.model
-// Falls back to deepseek config if rag.embedding keys are not set.
+// Only activates if rag.embedding.base_url is explicitly configured.
+// DeepSeek does NOT provide embeddings, so we never fall back to its config.
 func InitEmbedder() {
 	baseURL := viper.GetString("rag.embedding.base_url")
 	if baseURL == "" {
-		baseURL = viper.GetString("deepseek.base_url")
+		// No embedding provider configured — keyword-based retrieval will be used.
+		defaultEmbedder = nil
+		return
 	}
 
 	apiKey := viper.GetString("rag.embedding.api_key")
-	if apiKey == "" {
-		apiKey = viper.GetString("deepseek.api_key")
-	}
-
 	model := viper.GetString("rag.embedding.model")
 	if model == "" {
-		model = "text-embedding-v4"
+		model = "ecnu-embedding-small"
+	}
+
+	dims := viper.GetInt("rag.embedding.dimensions")
+	if dims <= 0 {
+		dims = 1024 // ecnu-embedding-small default
 	}
 
 	cfg := openai.DefaultConfig(apiKey)
@@ -42,6 +47,7 @@ func InitEmbedder() {
 	defaultEmbedder = &Embedder{
 		client: openai.NewClientWithConfig(cfg),
 		model:  model,
+		dims:   dims,
 	}
 }
 
@@ -94,12 +100,10 @@ func (e *Embedder) EmbedBatch(ctx context.Context, texts []string) ([][]float64,
 	return vecs, nil
 }
 
-// Dims returns the dimension of the embedding vectors, or 0 if unknown.
+// Dims returns the dimension of the embedding vectors.
 func (e *Embedder) Dims() int {
 	if e == nil {
 		return 0
 	}
-	// We don't know the dimension until we make a call.
-	// text-embedding-v4 returns 1536-dimensional vectors.
-	return 1536
+	return e.dims
 }
